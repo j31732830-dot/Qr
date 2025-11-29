@@ -1,0 +1,21 @@
+# Telegram Bot
+aiogram==3.13.1
+
+# QR Code generation (ASOSIY - har doim kerak)
+qrcode==7.4.2
+Pillow==10.4.0
+
+# Environment variables
+python-dotenv==1.0.1
+
+# ========================================
+# QR Code o'qish uchun (OPTIONAL)
+# Faqat bittasini tanlang:
+# ========================================
+
+# VARIANT 1: OpenCV (ZBar'siz, oson o'rnatiladi)
+opencv-python==4.10.0.84
+
+# VARIANT 2: ZBar (kuchli, lekin libzbar kerak)
+# pyzbar==0.1.9
+# Bu variant uchun: sudo apt-get install libzbar0
