@@ -13,14 +13,11 @@ from aiogram.types import FSInputFile, BufferedInputFile
 import qrcode
 from PIL import Image
 from pyzbar.pyzbar import decode
-from dotenv import load_dotenv
 
-load_dotenv()
 
 # Konfiguratsiya
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN topilmadi! .env faylida kiriting.")
+BOT_TOKEN = "8204502448:AAGGRMLSYlc494ZPcAHgye8Y40YoCSNMw7Q"
+
 
 # Logging sozlash
 logging.basicConfig(
@@ -76,14 +73,14 @@ def generate_qr_code(text: str, size: int = 10, border: int = 2) -> io.BytesIO:
         )
         qr.add_data(text)
         qr.make(fit=True)
-        
+
         img = qr.make_image(fill_color="black", back_color="white")
-        
+
         # BytesIO'ga saqlash (xotirada)
         bio = io.BytesIO()
         img.save(bio, 'PNG')
         bio.seek(0)
-        
+
         return bio
     except Exception as e:
         logger.error(f"QR kod yaratishda xato: {e}")
@@ -95,10 +92,10 @@ async def decode_qr_from_image(image_path: Path) -> str:
     try:
         img = Image.open(image_path)
         decoded_objects = decode(img)
-        
+
         if not decoded_objects:
             return None
-        
+
         # Birinchi topilgan QR kodni qaytarish
         text = decoded_objects[0].data.decode('utf-8')
         return text
@@ -134,7 +131,7 @@ async def cmd_start(message: types.Message):
         resize_keyboard=True,
         input_field_placeholder="Funksiyani tanlang"
     )
-    
+
     await message.answer(
         "🤖 <b>QR Code Bot'ga xush kelibsiz!</b>\n\n"
         "Men quyidagi funksiyalarni bajaraman:\n"
@@ -151,12 +148,12 @@ async def cmd_start(message: types.Message):
 async def text_to_qr_start(message: types.Message, state: FSMContext):
     """Matndan QR kod yaratish - boshlash"""
     await state.set_state(QRStates.waiting_for_text)
-    
+
     cancel_kb = types.ReplyKeyboardMarkup(
         keyboard=[[types.KeyboardButton(text="❌ Bekor qilish")]],
         resize_keyboard=True
     )
-    
+
     await message.answer(
         "📝 <b>QR kodga aylantirmoqchi bo'lgan matningizni yuboring:</b>\n\n"
         "Masalan:\n"
@@ -177,9 +174,9 @@ async def text_to_qr_process(message: types.Message, state: FSMContext):
         await state.clear()
         await cmd_start(message)
         return
-    
+
     text = message.text.strip()
-    
+
     # Uzunlikni tekshirish
     if len(text) > 2000:
         await message.answer(
@@ -187,17 +184,17 @@ async def text_to_qr_process(message: types.Message, state: FSMContext):
             "Iltimos, qisqaroq matn yuboring."
         )
         return
-    
+
     # Loading xabari
     loading_msg = await message.answer("⏳ QR kod yaratilmoqda...")
-    
+
     try:
         # QR kod yaratish
         qr_bytes = generate_qr_code(text)
-        
+
         # Telegram'ga yuborish (xotiradan)
         qr_file = BufferedInputFile(qr_bytes.read(), filename="qr_code.png")
-        
+
         await message.answer_photo(
             photo=qr_file,
             caption=f"✅ <b>QR kod tayyor!</b>\n\n"
@@ -205,19 +202,19 @@ async def text_to_qr_process(message: types.Message, state: FSMContext):
                     f"⏰ Yaratilgan vaqt: {datetime.now().strftime('%H:%M:%S')}",
             parse_mode="HTML"
         )
-        
+
         # Loading xabarini o'chirish
         await loading_msg.delete()
-        
+
         # Statistika
         logger.info(f"User {message.from_user.id} QR kod yaratdi (uzunlik: {len(text)})")
-        
+
         # State'ni tozalash
         await state.clear()
-        
+
         # Asosiy menyuga qaytish
         await cmd_start(message)
-        
+
     except Exception as e:
         await loading_msg.delete()
         await message.answer(
@@ -232,12 +229,12 @@ async def text_to_qr_process(message: types.Message, state: FSMContext):
 async def qr_to_text_start(message: types.Message, state: FSMContext):
     """QR koddan matn o'qish - boshlash"""
     await state.set_state(QRStates.waiting_for_image)
-    
+
     cancel_kb = types.ReplyKeyboardMarkup(
         keyboard=[[types.KeyboardButton(text="❌ Bekor qilish")]],
         resize_keyboard=True
     )
-    
+
     await message.answer(
         "📷 <b>QR kod rasmini yuboring:</b>\n\n"
         "• Rasmni to'g'ridan-to'g'ri yuboring (compress qilmang)\n"
@@ -254,7 +251,7 @@ async def qr_to_text_process(message: types.Message, state: FSMContext):
     """QR koddan matn o'qish - qayta ishlash"""
     # Loading xabari
     loading_msg = await message.answer("⏳ QR kod o'qilmoqda...")
-    
+
     try:
         # Rasmni yuklab olish
         if message.photo:
@@ -269,31 +266,31 @@ async def qr_to_text_process(message: types.Message, state: FSMContext):
             await loading_msg.delete()
             await message.answer("❌ Iltimos, rasm yuboring!")
             return
-        
+
         # Faylni yuklab olish
         file = await bot.get_file(file_id)
-        
+
         # Unique fayl nomi
         temp_path = TEMP_DIR / f"qr_{message.from_user.id}_{datetime.now().timestamp()}.png"
-        
+
         # Faylni saqlash
         await bot.download_file(file.file_path, temp_path)
-        
+
         # QR kodni o'qish
         decoded_text = await decode_qr_from_image(temp_path)
-        
+
         # Faylni darhol o'chirish
         if temp_path.exists():
             temp_path.unlink()
-        
+
         await loading_msg.delete()
-        
+
         if decoded_text:
             # Matnni formatlash
             text_preview = decoded_text[:500]  # Birinchi 500 belgini ko'rsatish
             if len(decoded_text) > 500:
                 text_preview += "\n\n<i>... (jami {} belgi)</i>".format(len(decoded_text))
-            
+
             await message.answer(
                 f"✅ <b>QR kod muvaffaqiyatli o'qildi!</b>\n\n"
                 f"📝 <b>Matn:</b>\n<code>{text_preview}</code>\n\n"
@@ -301,7 +298,7 @@ async def qr_to_text_process(message: types.Message, state: FSMContext):
                 f"⏰ O'qilgan vaqt: {datetime.now().strftime('%H:%M:%S')}",
                 parse_mode="HTML"
             )
-            
+
             # Agar matn juda uzun bo'lsa, file sifatida yuborish
             if len(decoded_text) > 4000:
                 text_file = io.BytesIO(decoded_text.encode('utf-8'))
@@ -310,7 +307,7 @@ async def qr_to_text_process(message: types.Message, state: FSMContext):
                     document=BufferedInputFile(text_file.read(), filename="qr_text.txt"),
                     caption="📄 To'liq matn fayl ko'rinishida"
                 )
-            
+
             logger.info(f"User {message.from_user.id} QR kodni o'qidi (uzunlik: {len(decoded_text)})")
         else:
             await message.answer(
@@ -321,20 +318,20 @@ async def qr_to_text_process(message: types.Message, state: FSMContext):
                 "• Yaxshi yorug'likda suratga oling",
                 parse_mode="HTML"
             )
-        
+
         # State'ni tozalash
         await state.clear()
-        
+
         # Asosiy menyuga qaytish
         await cmd_start(message)
-        
+
     except Exception as e:
         await loading_msg.delete()
-        
+
         # Temp faylni o'chirish
         if 'temp_path' in locals() and temp_path.exists():
             temp_path.unlink()
-        
+
         await message.answer(
             "❌ QR kodni o'qishda xatolik yuz berdi.\n"
             "Iltimos, boshqa rasm yuboring."
@@ -378,10 +375,10 @@ async def stats_command(message: types.Message):
     """Statistika"""
     user_id = message.from_user.id
     username = message.from_user.username or "Noma'lum"
-    
+
     # Temp papkadagi fayllar soni
     temp_files = len(list(TEMP_DIR.glob("*")))
-    
+
     await message.answer(
         f"📊 <b>Statistika</b>\n\n"
         f"👤 <b>Foydalanuvchi ID:</b> <code>{user_id}</code>\n"
@@ -422,7 +419,7 @@ async def help_command(message: types.Message):
 async def unknown_message(message: types.Message, state: FSMContext):
     """Noma'lum xabar"""
     current_state = await state.get_state()
-    
+
     if current_state is None:
         await message.answer(
             "❓ Noma'lum buyruq.\n"
@@ -446,22 +443,22 @@ async def periodic_cleanup():
     while True:
         try:
             await asyncio.sleep(300)  # Har 5 daqiqada
-            
+
             current_time = datetime.now()
             deleted_count = 0
-            
+
             for file_path in TEMP_DIR.glob("*"):
                 if file_path.is_file():
                     # Fayl yaratilgan vaqtni tekshirish
                     file_time = datetime.fromtimestamp(file_path.stat().st_mtime)
-                    
+
                     if current_time - file_time > FILE_LIFETIME:
                         file_path.unlink()
                         deleted_count += 1
-            
+
             if deleted_count > 0:
                 logger.info(f"Cleanup: {deleted_count} ta fayl o'chirildi")
-                
+
         except Exception as e:
             logger.error(f"Cleanup xatosi: {e}")
 
@@ -471,10 +468,10 @@ async def periodic_cleanup():
 async def on_startup():
     """Bot ishga tushganda"""
     logger.info("Bot ishga tushdi")
-    
+
     # Cleanup task'ni boshlash
     asyncio.create_task(periodic_cleanup())
-    
+
     # Eski fayllarni darhol tozalash
     for file_path in TEMP_DIR.glob("*"):
         if file_path.is_file():
@@ -485,7 +482,7 @@ async def on_startup():
 async def on_shutdown():
     """Bot to'xtaganda"""
     logger.info("Bot to'xtayapti")
-    
+
     # Barcha temp fayllarni o'chirish
     for file_path in TEMP_DIR.glob("*"):
         if file_path.is_file():
