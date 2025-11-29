@@ -9,7 +9,7 @@ import asyncio
 import json
 
 
-TOKEN = "YOUR_TOKEN_HERE"
+TOKEN = "8499904012:AAFBj0PE3gM-0U0-cCcQA7IPmTCKXk2CGmY"
 
 # AIROGRAM 3.7+ to‘g‘ri yozilishi
 bot = Bot(TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
